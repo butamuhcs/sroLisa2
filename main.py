@@ -227,8 +227,8 @@ async def handle_date(message: types.Message, state: FSMContext):
     skipped = 0
 
     for company in companies:
-        print(company[1])
-        email = company[1]
+        print(company[0])
+        email = company[0]
         if not email or not is_valid_email(email):
             skipped += 1
             print(f"Пропускаем некорректный email: {email}")
@@ -267,7 +267,7 @@ def get_companies_with_email(date: str):
     connection = pymysql.connect(host=DB_HOST, user=DB_USER, password=DB_PASSWORD, database=DB_NAME)
     with connection.cursor() as cursor:
         query = """
-            SELECT name, email, reg_date 
+            SELECT email 
             FROM companies 
             WHERE reg_date = %s AND email IS NOT NULL AND email != ''
         """
