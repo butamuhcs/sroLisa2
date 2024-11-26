@@ -274,6 +274,7 @@ def get_companies_with_email(date: str):
         cursor.execute(query, (date,))
         result = cursor.fetchall()
     connection.close()
+    print(result)
     return [email[0] for email in result if email[0] and is_valid_email(email[0])]
 
 
