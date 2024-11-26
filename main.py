@@ -35,6 +35,9 @@ BOT_TOKEN = "7819602602:AAHcn3arxa5runjj9nYRT8cC2KeS3-BpHKI"
 sending_in_progress = False
 check_Ratelimit = 0
 
+# Глобальные переменные для резервного хранения логина и пароля
+global_auth_data = {"login": None, "password": None}
+
 # Настройки MySQL
 DB_HOST = 'VH290.spaceweb.ru'
 DB_USER = 'butamuhcsy_Lisa'
@@ -102,13 +105,14 @@ async def send_email(smtp_server, login, password, recipient, subject):
     except smtplib.SMTPResponseException as e:
         print(f"Ошибка при отправке письма: {e.smtp_code}, {e.smtp_error}")
         if e.smtp_code == 451:
-            print("Превышен лимит отправки писем. Пауза на 40 минут.")
             if check_Ratelimit == 0:
+                print("Превышен лимит отправки писем. Пауза на 30 минут.")
                 check_Ratelimit += 1
-                await asyncio.sleep(50 * 60)  # Ожидание 31 минуты
+                await asyncio.sleep(30 * 60)  # Ожидание 50 минут
             if check_Ratelimit > 0:
+                print("Превышен лимит отправки писем. Пауза на 5 минут.")
                 check_Ratelimit += 1
-                await asyncio.sleep(5 * 60)  # Ожидание 31 минуты
+                await asyncio.sleep(5 * 60)  # Ожидание 5 минут
         return False
     except Exception as e:
         print(f"Ошибка при отправке письма: {e}")
@@ -135,10 +139,26 @@ async def authorize_user(message: types.Message):
 @dp.message(StateFilter(None),lambda message: "@" in message.text and " " in message.text)
 async def handle_login(message: types.Message, state: FSMContext):
     login, password = message.text.split(maxsplit=1)
+    # Резервируем данные в глобальной переменной
+    global_auth_data["login"] = login
+    global_auth_data["password"] = password
     await state.update_data(login=login)
     await state.update_data(password=password)
 
     await message.answer("Авторизация прошла успешно!")
+
+async def get_auth_data(state: FSMContext):
+    # Проверяем данные FSM
+    user_data = await state.get_data()
+    login = user_data['login']
+    password = user_data['password']
+
+    # Если данных нет в FSM, используем глобальные резервные
+    if not login or not password:
+        login = global_auth_data["login"]
+        password = global_auth_data["password"]
+
+    return login, password
 
 # Обработчик тестового письма
 @dp.message(lambda message: message.text == "Тестовое письмо")
@@ -191,9 +211,9 @@ async def handle_date(message: types.Message, state: FSMContext):
         return
 
     total_emails = len(companies)
-    delay = 0.5  # Время задержки между письмами в минутах
+    delay = 0.25  # Время задержки между письмами в минутах
     emails_per_group = 30
-    pause_time = 40  # Пауза в минутах
+    pause_time = 30  # Пауза в минутах
 
     groups = (total_emails + emails_per_group - 1) // emails_per_group
     group_time = emails_per_group * delay
@@ -206,10 +226,6 @@ async def handle_date(message: types.Message, state: FSMContext):
     successful = 0
     skipped = 0
 
-    user_data = await state.get_data()
-    login = user_data['login']
-    password = user_data['password']
-
     for company in companies:
         print(company[1])
         email = company[1]
@@ -220,12 +236,18 @@ async def handle_date(message: types.Message, state: FSMContext):
 
         subject = "Вступление в самую надёжную СРО! Премия от 10000 рублей"
 
+        login, password = await get_auth_data(state)
+        if not login or not password:
+            await message.answer("Сначала выполните авторизацию, используя 'Авторизоваться'.")
+            return
+
         if await send_email(SMTP_SERVER, login, password, email, subject):
             successful += 1
             check_Ratelimit = 0
-            await asyncio.sleep(20)
+            await asyncio.sleep(15)
         else:
             skipped += 1
+            print(f'Логин {login}. Пароль {password}.')
         print(f'Отправлено {successful} писем. Пропущено {skipped}. Всего {len(companies)}')
 
 
@@ -252,7 +274,7 @@ def get_companies_with_email(date: str):
         cursor.execute(query, (date,))
         result = cursor.fetchall()
     connection.close()
-    return result
+    return [email[0] for email in result if email[0] and is_valid_email(email[0])]
 
 
 @dp.message(lambda message: message.text == "Сформировать Excel")
