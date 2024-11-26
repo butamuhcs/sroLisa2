@@ -203,7 +203,7 @@ async def handle_date(message: types.Message, state: FSMContext):
     sending_in_progress = True
     date = message.text.strip()
     companies = get_companies_with_email(date)
-    return
+
     if not companies:
         await message.answer(f"Нет компаний с датой {date}.")
         sending_in_progress = False
@@ -267,15 +267,14 @@ def get_companies_with_email(date: str):
     connection = pymysql.connect(host=DB_HOST, user=DB_USER, password=DB_PASSWORD, database=DB_NAME)
     with connection.cursor() as cursor:
         query = """
-            SELECT email 
+            SELECT name, email, reg_date 
             FROM companies 
             WHERE reg_date = %s AND email IS NOT NULL AND email != ''
         """
         cursor.execute(query, (date,))
         result = cursor.fetchall()
     connection.close()
-    print(result)
-    return [email[0] for email in result if email[0] and is_valid_email(email[0])]
+    return result
 
 
 @dp.message(lambda message: message.text == "Сформировать Excel")
