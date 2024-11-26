@@ -203,7 +203,7 @@ async def handle_date(message: types.Message, state: FSMContext):
     sending_in_progress = True
     date = message.text.strip()
     companies = get_companies_with_email(date)
-
+    return
     if not companies:
         await message.answer(f"Нет компаний с датой {date}.")
         sending_in_progress = False
@@ -227,8 +227,8 @@ async def handle_date(message: types.Message, state: FSMContext):
     skipped = 0
 
     for company in companies:
-        print(company[0])
-        email = company[0]
+        print(company[1])
+        email = company[1]
         if not email or not is_valid_email(email):
             skipped += 1
             print(f"Пропускаем некорректный email: {email}")
