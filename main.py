@@ -75,6 +75,9 @@ def is_valid_email(email):
         return True
     except (dns.resolver.NoAnswer, dns.resolver.NXDOMAIN):
         return False
+    except Exception:
+        print('Ошибка в dns.resolver.resolve')
+        return False
 
 # Подключение к базе данных
 def get_companies(date: str):
